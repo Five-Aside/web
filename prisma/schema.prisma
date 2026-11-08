@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/** One club / pitch community using the platform. */
+model League {
+  id                String          @id @default(cuid())
+  slug              String          @unique
+  name              String
+  shortName         String
+  tagline           String?
+  venue             String
+  /** 0 = Sunday … 6 = Saturday */
+  dayOfWeek         Int             @default(4)
+  /** 24h "HH:MM" */
+  kickoffTime       String          @default("19:00")
+  sessionMinutes    Int             @default(90)
+  matchMinutes      Int             @default(11)
+  turnaroundMinutes Int             @default(3)
+  teamCount         Int             @default(4)
+  cycleWeeks        Int             @default(4)
+  monthlyFee        Int
+  visitorFee        Int
+  bankName          String?
+  accountNumber     String?
+  accountName       String?
+  whatsappGroupName String?
+  whatsappGroupUrl  String?
+  adminName         String?
+  adminPhone        String?
+  rulesNotes        String?
+  status            String          @default("pilot") // pilot | active | paused
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  cycles            Cycle[]
+  teams             Team[]
+  players           Player[]
+  walkIns           WalkInPayment[]
+  expenses          Expense[]
+  ledger            PurseLedger[]
+  feedback          Feedback[]
+  news              NewsPost[]
+}
+
+/** A multi-week league cycle (the "month"): fees, dates, fixtures, results. */
+model Cycle {
+  id         String          @id @default(cuid())
+  leagueId   String
+  league     League          @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  key        String
+  label      String
+  /** "YYYY-MM-DD" of week 1 */
+  startDate  String
+  weeks      Int
+  monthlyFee Int
+  visitorFee Int
+  isCurrent  Boolean         @default(false)
+  createdAt  DateTime        @default(now())
+  fixtures   Fixture[]
+  results    MatchResult[]
+  events     MatchEvent[]
+  payments   Payment[]
+  walkIns    WalkInPayment[]
+  news       NewsPost[]
+
+  @@unique([leagueId, key])
+  @@index([leagueId, isCurrent])
+}
+
+model Fixture {
+  id             String @id @default(cuid())
+  cycleId        String
+  cycle          Cycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  week           Int
+  match          Int
+  homeTeamNumber Int
+  awayTeamNumber Int
+  /** 24h "HH:MM" */
+  startTime      String
+  endTime        String
+  /** Team numbers on panel duty, e.g. [3, 4] */
+  officials      Int[]
+
+  @@unique([cycleId, week, match])
+}
+
+model Team {
+  id          String        @id @default(cuid())
+  leagueId    String
+  league      League        @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  number      Int
+  name        String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  players     Player[]
+  homeResults MatchResult[] @relation("HomeTeam")
+  awayResults MatchResult[] @relation("AwayTeam")
+
+  @@unique([leagueId, number])
+}
+
+model Player {
+  id                         String       @id @default(cuid())
+  leagueId                   String
+  league                     League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  name                       String
+  phone                      String
+  passwordHash               String
+  status                     String       @default("pending") // pending | active
+  seat                       String       @default("sub") // permanent | sub
+  role                       String       @default("player") // player | organiser
+  photoPath                  String?
+  suspensionMatchesRemaining Int          @default(0)
+  suspensionReason           String?
+  /** Organiser-set overall rating 0–99 (0 = not rated). */
+  overall                    Int          @default(0)
+  teamId                     String?
+  team                       Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
+  payments                   Payment[]
+  events                     MatchEvent[]
+  feedback                   Feedback[]
+
+  @@unique([leagueId, phone])
+  @@index([leagueId, status])
+  @@index([name])
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  cycleId   String
+  cycle     Cycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  type      String // MONTHLY | INSTALMENT | VISITOR
+  amount    Int
+  note      String?
+  /** confirmed = organiser-verified (counts in purse); claimed = player submitted, awaiting confirmation */
+  status    String   @default("confirmed") // claimed | confirmed
+  paidAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([cycleId])
+  @@index([playerId])
+  @@index([status])
+}
+
+/** Cash / on-field payments from people not yet registered. */
+model WalkInPayment {
+  id        String   @id @default(cuid())
+  leagueId  String
+  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  cycleId   String
+  cycle     Cycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  name      String
+  amount    Int
+  note      String?
+  paidAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([cycleId])
+}
+
+model MatchEvent {
+  id        String   @id @default(cuid())
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  cycleId   String
+  cycle     Cycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  week      Int
+  match     Int
+  type      String // GOAL | ASSIST | YC | RC
+  count     Int      @default(1)
+  /// "home" | "away" for live-logged events; subs can play for either side.
+  side      String?
+  createdAt DateTime @default(now())
+
+  @@index([cycleId])
+  @@index([playerId])
+}
+
+/** Final score for a scheduled fixture (league table). */
+model MatchResult {
+  id         String   @id @default(cuid())
+  cycleId    String
+  cycle      Cycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  week       Int
+  match      Int
+  homeTeamId String
+  awayTeamId String
+  homeTeam   Team     @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Cascade)
+  awayTeam   Team     @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Cascade)
+  homeGoals  Int
+  awayGoals  Int
+  /// "live" while the organiser is updating it pitch-side, otherwise "final".
+  status     String   @default("final")
+  /// Bans served when this result was first logged, [{ id, reason }], so a cancelled kick-off can hand them back.
+  servedBans Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([cycleId, week, match])
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  leagueId  String
+  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  title     String
+  amount    Int
+  note      String?
+  spentAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([leagueId])
+}
+
+model PurseLedger {
+  id        String   @id @default(cuid())
+  leagueId  String
+  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  amount    Int
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([leagueId])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  leagueId  String
+  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  type      String
+  message   String
+  name      String?
+  playerId  String?
+  player    Player?  @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+
+  @@index([leagueId, status])
+}
+
+/** League news / matchday stories. */
+model NewsPost {
+  id        String   @id @default(cuid())
+  leagueId  String
+  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  cycleId   String?
+  cycle     Cycle?   @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  title     String
+  body      String
+  pinned    Boolean  @default(false)
+  week      Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leagueId, pinned, createdAt])
+}
+
+/** "Request a league" submissions from the platform landing page. */
+model LeagueRequest {
+  id           String   @id @default(cuid())
+  leagueName   String
+  contactName  String
+  phone        String
+  email        String?
+  city         String?
+  venue        String?
+  playerCount  Int?
+  message      String?
+  status       String   @default("new") // new | contacted | onboarded | declined
+  createdAt    DateTime @default(now())
+
+  @@index([status])
+}
