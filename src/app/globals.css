@@ -1,0 +1,228 @@
+@import "tailwindcss";
+
+:root {
+  --pitch-deep: #06150f;
+  --pitch: #0c281c;
+  --pitch-lift: #123526;
+  --turf: #1a5c3c;
+  --chalk: #f3f6f1;
+  --flood: #e4b53f;
+  --flood-soft: #f0d27a;
+  --muted: #9aafa2;
+  --line: rgba(243, 246, 241, 0.12);
+  --danger: #c45c3a;
+}
+
+@theme inline {
+  --font-display: var(--font-bebas), sans-serif;
+  --font-body: var(--font-outfit), sans-serif;
+  --color-pitch-deep: var(--pitch-deep);
+  --color-pitch: var(--pitch);
+  --color-pitch-lift: var(--pitch-lift);
+  --color-turf: var(--turf);
+  --color-chalk: var(--chalk);
+  --color-flood: var(--flood);
+  --color-flood-soft: var(--flood-soft);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-danger: var(--danger);
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-outfit), sans-serif;
+  background:
+    radial-gradient(ellipse 90% 45% at 70% -5%, rgba(228, 181, 63, 0.14), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 10% 20%, rgba(26, 92, 60, 0.35), transparent 55%),
+    linear-gradient(180deg, var(--pitch-deep) 0%, var(--pitch) 55%, #0a1f16 100%);
+  background-attachment: fixed;
+  color: var(--chalk);
+}
+
+/* Native selects: solid dark panel so option text stays readable */
+select,
+.select-field {
+  background-color: var(--pitch-lift);
+  color: var(--chalk);
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background-color: var(--pitch-lift);
+  color: var(--chalk);
+}
+
+::selection {
+  background: rgba(228, 181, 63, 0.35);
+  color: var(--chalk);
+}
+
+.font-display {
+  font-family: var(--font-bebas), sans-serif;
+}
+
+.section-shell {
+  width: min(100%, 68rem);
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 2.25rem);
+}
+
+.prose-width {
+  max-width: 38rem;
+}
+
+.hero-kenburns {
+  animation: kenburns 22s ease-in-out infinite alternate;
+}
+
+@keyframes kenburns {
+  from {
+    transform: scale(1.05) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.12) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-copy {
+  animation: rise 0.85s ease-out both;
+}
+
+.news-ticker {
+  animation: news-marquee 40s linear infinite;
+}
+
+@keyframes news-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-kenburns,
+  .hero-copy,
+  .news-ticker {
+    animation: none;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111 !important;
+    background-attachment: scroll !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-ink {
+    color: #0c281c !important;
+  }
+
+  .print-muted {
+    color: #333 !important;
+  }
+
+  .print-accent {
+    color: #8a6a16 !important;
+  }
+
+  .print-show-all {
+    display: block !important;
+  }
+
+  /* Match log: 3 matches per printed page */
+  #log {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  #log .section-shell {
+    width: 100%;
+    max-width: none;
+    padding-inline: 0;
+  }
+
+  .match-log-intro {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .match-log-sheets {
+    margin-top: 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 4mm;
+  }
+
+  .match-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    padding: 3.5mm !important;
+    border-color: #bbb !important;
+  }
+
+  .match-block-page-end {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .match-log-notes {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .match-log-area {
+    resize: none !important;
+  }
+
+  .match-log-area-tall {
+    min-height: 24mm;
+    height: 24mm;
+  }
+
+  .match-log-area-cards {
+    min-height: 16mm;
+    height: 16mm;
+  }
+
+  #log input,
+  #log textarea {
+    color: #111 !important;
+    border-color: #999 !important;
+    background: #fff !important;
+  }
+
+  #log .text-muted,
+  #log .text-flood,
+  #log .text-flood-soft,
+  #log .text-chalk {
+    color: inherit;
+  }
+}
